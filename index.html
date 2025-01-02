@@ -1,0 +1,265 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Play-to-Win</title>
+  <style>
+    /* Same styling as before */
+    body {
+      font-family: 'Courier New', monospace;
+      background-color: #000000;
+      color: #00FF00;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
+      background-image: radial-gradient(circle at center, #111111, #000000);
+    }
+
+    h1 {
+      font-size: 2.5em;
+      animation: softFlicker 2s infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes softFlicker {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.85; }
+      70% { opacity: 0.6; }
+    }
+
+    .ascii-text {
+      font-size: 1.2em;
+      white-space: pre;
+      line-height: 1.5;
+      animation: gentleGlow 1.5s infinite;
+      margin-bottom: 10px;
+    }
+
+    .reward-text {
+      font-size: 1.5em;
+      color: #FFD700;
+      margin-top: 10px;
+    }
+
+    @keyframes gentleGlow {
+      0%, 100% { color: #00FF00; }
+      50%      { color: #00CC00; }
+    }
+
+    #wallet-container, #game-container {
+      margin: 20px;
+      max-width: 600px;
+      text-align: center;
+      border: 2px solid #00FF00;
+      padding: 20px;
+      border-radius: 8px;
+      background-color: #001100;
+      box-shadow: 0 0 10px #00FF00;
+    }
+
+    input {
+      background-color: #003300;
+      color: #00FF00;
+      border: 1px solid #00FF00;
+      padding: 10px;
+      font-size: 1.2em;
+      width: 100%;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      caret-color: #00FF00;
+    }
+
+    button {
+      background-color: #00FF00;
+      color: #000000;
+      padding: 10px 20px;
+      font-size: 1.2em;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+      width: 100%;
+      transition: background-color 0.3s;
+      border-radius: 4px;
+      box-shadow: 0 0 5px #00FF00;
+    }
+
+    button:hover {
+      background-color: #00CC00; /* Slightly darker hover state */
+    }
+
+    #sequence-display {
+      font-size: 1.5em;
+      margin: 20px 0;
+      animation: softFlicker 2s infinite;
+      min-height: 60px;
+    }
+
+    #quiz-answers {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .answer-button {
+      background-color: #003300;
+      color: #00FF00;
+      border: 1px solid #00FF00;
+      padding: 15px;
+      cursor: pointer;
+      font-size: 1.2em;
+      transition: background-color 0.3s;
+      border-radius: 4px;
+      box-shadow: 0 0 5px #00FF00;
+    }
+
+    .answer-button:hover {
+      background-color: #002200;
+    }
+
+    #score-display {
+      margin-bottom: 15px;
+      font-size: 1.3em;
+      text-align: left;
+      width: 100%;
+    }
+
+    #result-message {
+      font-size: 1.4em;
+      color: #FFD700; /* Gold color for the final message */
+      margin-top: 20px;
+      display: none;
+      animation: softFlicker 2s infinite;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <!-- 1) Wallet Container -->
+  <div id="wallet-container">
+    <h1>Play-to-Win</h1>
+    <div class="ascii-text">
+      ██████╗  █████╗ ███╗   ██╗ ██████╗ ██████╗ 
+      ██╔══██╗██╔══██╗████╗  ██║██╔═══██╗██╔══██╗
+      ██████╔╝███████║██╔██╗ ██║██║   ██║██████╔╝
+      ██╔══██╗██╔══██║██║╚██╗██║██║   ██║██╔══██╗
+      ██║  ██║██║  ██║██║ ╚████║╚██████╔╝██║  ██║
+      ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝
+    </div>
+    <p class="reward-text">Win 0.1 SOL!</p>
+    <p class="ascii-text">Enter your Solana wallet to initiate the challenge.</p>
+    <input type="text" id="wallet" placeholder="Enter your Solana wallet address"/>
+    <button onclick="submitWallet()">Initiate</button>
+  </div>
+
+  <!-- 2) Game Container -->
+  <div id="game-container" style="display: none;">
+    <h1>System Challenge</h1>
+    <p id="score-display">Correct Answers: 0 / 3</p>
+    <div id="sequence-display">Loading question...</div>
+    <div id="quiz-answers"></div>
+  </div>
+
+  <!-- 3) Result Message -->
+  <p id="result-message"></p>
+
+  <script>
+    const allEasyQuestions = [
+      {
+        question: "Which token is used on the Solana network?",
+        answers: ["SOL", "ETH", "BNB", "DOT"],
+        correct: 0
+      },
+      {
+        question: "Solana transactions are known for being:",
+        answers: ["Slow & expensive", "Fast & low cost", "Impossible to trace", "Proof-of-Work only"],
+        correct: 1
+      },
+      {
+        question: "Which concept orders transactions in Solana?",
+        answers: ["Proof of History", "Proof of Burn", "Sharding", "Lightning Network"],
+        correct: 0
+      }
+    ];
+
+    let correctCount = 0;
+    let askedQuestions = new Set();
+
+    function submitWallet() {
+      const wallet = document.getElementById('wallet').value.trim();
+      if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet)) {
+        document.getElementById('wallet-container').style.display = 'none';
+        document.getElementById('game-container').style.display = 'block';
+        correctCount = 0;
+        askedQuestions.clear();
+        updateScoreDisplay();
+        loadQuestion();
+      } else {
+        alert('Invalid Solana wallet address. Please try again.');
+      }
+    }
+
+    function loadQuestion() {
+      if (correctCount >= 3) {
+        showWinnerMessage();
+        return;
+      }
+
+      const availableQuestions = allEasyQuestions.filter((_, index) => !askedQuestions.has(index));
+      if (availableQuestions.length === 0) {
+        askedQuestions.clear();
+      }
+
+      const questionObj = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+      displayQuestion(questionObj);
+    }
+
+    function displayQuestion(questionObj) {
+      const sequenceDisplay = document.getElementById('sequence-display');
+      const quizAnswersDiv = document.getElementById('quiz-answers');
+
+      sequenceDisplay.textContent = questionObj.question;
+      quizAnswersDiv.innerHTML = '';
+
+      questionObj.answers.forEach((answer, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'answer-button';
+        btn.textContent = answer;
+        btn.onclick = () => checkAnswer(index, questionObj.correct, questionObj);
+        quizAnswersDiv.appendChild(btn);
+      });
+    }
+
+    function checkAnswer(selectedIndex, correctIndex) {
+      if (selectedIndex === correctIndex) {
+        correctCount++;
+        updateScoreDisplay();
+        loadQuestion(); // Move to next question
+      } else {
+        loadQuestion(); // Still move to the next question for simplicity
+      }
+    }
+
+    function updateScoreDisplay() {
+      document.getElementById('score-display').textContent = `Correct Answers: ${correctCount} / 3`;
+    }
+
+    function showWinnerMessage() {
+      document.getElementById('game-container').style.display = 'none';
+      const resultMessage = document.getElementById('result-message');
+      resultMessage.innerHTML = `
+        <strong>Congratulations!</strong><br>
+        You've successfully answered 3 questions.<br>
+        Claim your <strong>0.1 SOL</strong> reward by tagging us on 
+        <a href="https://x.com/YOUR_X_ACCOUNT" target="_blank">@YOUR_X_ACCOUNT</a> 
+        with your wallet address.
+      `;
+      resultMessage.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
